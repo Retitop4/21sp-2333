@@ -110,6 +110,22 @@ public class Model extends Observable {
         boolean changed;
         changed = false;
 
+        int score1 = this.score;
+        if (moveAllTiles(side)) {
+            changed = true;
+        }
+        if (mergeAllTiles(side)) {
+            changed = true;
+        }
+        if (moveAllTiles(side)) {
+            changed = true;
+        }
+
+        if (this.score != score1) {
+            changed = true;
+        }
+
+        this.board.setViewingPerspective(Side.NORTH);
         // TODO: Modify this.board (and perhaps this.score) to account
         // for the tilt to the Side SIDE. If the board changed, set the
         // changed local variable to true.
@@ -117,6 +133,98 @@ public class Model extends Observable {
         checkGameOver();
         if (changed) {
             setChanged();
+        }
+        return changed;
+    }
+
+    public Tile upOne(Side side, int col, int row) {
+        int col1 = col;
+        int row1 = row + 1;
+        Tile theUp = this.board.tile(col1, row1);
+        return theUp;
+    }
+
+    public int[] transfer(Side side, int col, int row){
+        int col1 = side.col(col, row, this.board.size());
+        int row1 = side.row(col, row, this.board.size()) + 1;
+        Tile theUp = this.board.tile(col1, row1);
+        int[] array = new int[2];
+        array[0] = theUp.col();
+        array[1] = theUp.row();
+        return array;
+    }
+
+
+    public boolean moveOneTile(Side side, int col, int row) {
+        this.board.setViewingPerspective(side);
+        if (row >= this.board.size()-1) {
+            return false;
+        } else if (this.board.tile(col, row) == null){
+            return false;
+        } else if (upOne(side, col, row) == null) {
+            this.board.move(col, row + 1, this.board.tile(col, row));
+            return true;
+        } else{
+            return false;
+        }
+    }
+
+
+    public boolean moveAllTiles(Side side) {
+        boolean changed = false;
+        for (int i=0; i<this.board.size(); i++) {
+            for (int j=0; j<this.board.size(); j++) {
+                for (int k=0; k<this.board.size(); k++) {
+                    if (moveOneTile(side, j, k)){
+                        changed = true;
+                    }
+                }
+            }
+        }
+        return changed;
+    }
+
+    public boolean mergeOneTile(Side side, int col, int row) {
+        if (row >= this.board.size()-1) {
+            return false;
+        } else if (board.tile(col, row)==null || upOne(side, col, row)==null) {
+            return false;
+        } else if (upOne(side, col, row).value() == board.tile(col, row).value()) {
+            this.board.setViewingPerspective(side);
+            this.board.move(col, row + 1, this.board.tile(col, row));
+            score += board.tile(col, row + 1).value();
+            return true;
+        } else{
+            return false;
+        }
+    }
+
+    public int[] generateArray(int n, int size) {
+        int[] array = new int[n];
+        if (n > 0) {
+            for (int i = 0; i < n; i++) {
+                array[i] = n - i - 1;
+            }
+            return array;
+        } else {
+            for (int i = 0; i < size; i++) {
+                array[i] = i;
+            }
+            return array;
+        }
+
+    }
+
+    public boolean mergeAllTiles(Side side) {
+        boolean changed = false;
+        int[] arrayCol = generateArray(this.board.size(), this.board.size());
+        int[] arrayRow = generateArray(this.board.size(), this.board.size());
+        for (int i : arrayCol) {
+            for (int j : arrayRow) {
+                if (mergeOneTile(side, i, j)){
+                    changed = true;
+                }
+            }
         }
         return changed;
     }
@@ -138,6 +246,15 @@ public class Model extends Observable {
      * */
     public static boolean emptySpaceExists(Board b) {
         // TODO: Fill in this function.
+        for (int i=0; i<b.size(); i++) {
+            for (int j=0; j<b.size(); j++) {
+                if (b.tile(i, j) == null){
+                    return true;
+                } else{
+                    continue;
+                }
+            }
+        }
         return false;
     }
 
@@ -148,6 +265,18 @@ public class Model extends Observable {
      */
     public static boolean maxTileExists(Board b) {
         // TODO: Fill in this function.
+        for (int i=0; i<b.size(); i++) {
+            for (int j=0; j<b.size(); j++) {
+                if (b.tile(i, j) == null){
+                    continue;
+                }
+                if (b.tile(i, j).value() == MAX_PIECE){
+                    return true;
+                } else {
+                    continue;
+                }
+            }
+        }
         return false;
     }
 
@@ -159,9 +288,68 @@ public class Model extends Observable {
      */
     public static boolean atLeastOneMoveExists(Board b) {
         // TODO: Fill in this function.
+        if (boardExistsSameNeighbor(b) || emptySpaceExists(b)) {
+            return true;
+        }
         return false;
     }
 
+    public static boolean boardExistsSameNeighbor(Board b){
+        for (int i=0; i<b.size(); i++) {
+            for (int j=0; j<b.size(); j++) {
+                if (existsSameNeighbor(b, i, j)){
+                    return true;
+                } else {
+                    continue;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean existsSameNeighbor(Board b, int col, int row) {
+        Tile[] neighbors = Neighbors(b, col, row);
+        for (int i=0; i<neighbors.length; i++) {
+            if (neighbors[i]==null || b.tile(col, row)==null){
+                continue;
+            } else if (neighbors[i].value() == b.tile(col, row).value()){
+                return true;
+            } else{
+                continue;
+            }
+        }
+        return false;
+    }
+
+    public static Tile[] Neighbors (Board b, int col, int row) {
+        boolean left=true, right=true, up=true, down=true;
+        Tile[] neighbors =new Tile[4];
+        if (col==0){
+            left = false;
+        }
+        if (row==0){
+            down = false;
+        }
+        if (col==b.size()-1){
+            right = false;
+        }
+        if (row==b.size()-1){
+            up = false;
+        }
+        if (left==true){
+            neighbors[0] = b.tile(col-1, row);
+        }
+        if (right==true){
+            neighbors[1] = b.tile(col+1, row);
+        }
+        if (up==true){
+            neighbors[2] = b.tile(col, row+1);
+        }
+        if (down==true){
+            neighbors[3] = b.tile(col, row-1);
+        }
+        return neighbors;
+    }
 
     @Override
      /** Returns the model as a string, used for debugging. */
